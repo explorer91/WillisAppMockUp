@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WillisApp — Healthcare & Insurance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #E8EDF5; font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif; }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  input, button, textarea, select { font-family: inherit; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  * { -webkit-tap-highlight-color: transparent; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<script type="text/babel" src="components/tokens.js"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="components/AuthScreens.jsx"></script>
+<script type="text/babel" src="components/HomeScreen.jsx"></script>
+<script type="text/babel" src="components/PolicyScreens.jsx"></script>
+<script type="text/babel" src="components/ConsultScreens.jsx"></script>
+<script type="text/babel" src="components/ProfileScreens.jsx"></script>
+<script type="text/babel" src="components/ChatBot.jsx"></script>
+
+<script type="text/babel">
+const { useState, useCallback } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "primaryColor": "#1A9BAF",
+  "accentColor": "#2563EB",
+  "deviceColor": "silver",
+  "showOnboarding": true
+}/*EDITMODE-END*/;
+
+/* ══════════════════════════════════════════
+   APP ROUTER — stack-based navigation
+═══════════════════════════════════════════ */
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Apply tweaks to token overrides
+  React.useEffect(() => {
+    if (tweaks.primaryColor) {
+      window.T = { ...window.T, primary: tweaks.primaryColor };
+    }
+    if (tweaks.accentColor) {
+      window.T = { ...window.T, accent: tweaks.accentColor };
+    }
+  }, [tweaks.primaryColor, tweaks.accentColor]);
+
+  // Navigation stack: array of {screen, props}
+  const [stack, setStack] = useState(
+    tweaks.showOnboarding ? [{ screen: 'welcome' }] : [{ screen: 'login' }]
+  );
+  const [activeTab, setActiveTab] = useState('home');
+
+  const current = stack[stack.length - 1];
+
+  const push = useCallback((screen, props = {}) => {
+    setStack(s => [...s, { screen, props }]);
+  }, []);
+
+  const pop = useCallback(() => {
+    setStack(s => s.length > 1 ? s.slice(0, -1) : s);
+  }, []);
+
+  const replace = useCallback((screen, props = {}) => {
+    setStack([{ screen, props }]);
+  }, []);
+
+  const goHome = useCallback((tab = 'home') => {
+    setStack([{ screen: 'main' }]);
+    setActiveTab(tab);
+  }, []);
+
+  /* Tab screens (inside main shell) */
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <HomeScreen
+            onNav={(id) => {
+              if (id === 'calldoctor') push('consult');
+              else if (id === 'finddoctor') push('providers');
+              else if (id === 'policies') { setActiveTab('policies'); }
+              else if (id === 'messages') setActiveTab('messages');
+              else if (id === 'rewards') push('rewards');
+              else if (id === 'wellness') push('wellness');
+              else if (id === 'ecard') push('ecard');
+              else if (id === 'consult') push('consult');
+            }}
+            onAction={(id) => {
+              if (id === 'ecard') push('ecard');
+              else if (id === 'consult') push('consult');
+              else if (id === 'notifications') push('messages');
+            }}
+          />
+        );
+      case 'policies':
+        return (
+          <PolicyScreen
+            onBack={() => setActiveTab('home')}
+            onECard={() => push('ecard')}
+          />
+        );
+      case 'consult':
+        return (
+          <ConsultScreen
+            onBack={() => setActiveTab('home')}
+            onConnect={(type) => push('videocall', { callType: type })}
+          />
+        );
+      case 'messages':
+        return (
+          <MessagesScreen onBack={() => setActiveTab('home')} />
+        );
+      case 'profile':
+        return (
+          <ProfileScreen
+            onNav={(id) => setActiveTab(id)}
+            onAction={(id) => {
+              if (id === 'family') push('family');
+              else if (id === 'ecard') push('ecard');
+              else if (id === 'settings') push('settings');
+              else if (id === 'about') push('about');
+              else if (id === 'help') push('help');
+            }}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  /* Full-screen pushes (above tabs) */
+  const renderScreen = () => {
+    const { screen, props = {} } = current;
+
+    if (screen === 'welcome') {
+      return <WelcomeScreen onDone={() => replace('login')} />;
+    }
+    if (screen === 'login') {
+      return (
+        <LoginScreen
+          onLogin={() => goHome('home')}
+          onForgot={() => push('forgot')}
+          onHowToAccess={() => push('howto')}
+        />
+      );
+    }
+    if (screen === 'forgot') {
+      return <ForgotPasswordScreen onBack={pop} />;
+    }
+    if (screen === 'howto') {
+      return <HowToAccessScreen onBack={pop} />;
+    }
+
+    if (screen === 'main') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position:'relative' }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            {renderTabContent()}
+          </div>
+          <ChatFAB onClick={() => push('chatbot')} />
+          <BottomNav
+            active={activeTab}
+            onNav={(tab) => {
+              if (tab === 'consult') { setActiveTab('consult'); }
+              else setActiveTab(tab);
+            }}
+            notifications={2}
+          />
+        </div>
+      );
+    }
+
+    /* Pushed screens */
+    if (screen === 'chatbot') return <ChatBotScreen onBack={pop} />;
+    if (screen === 'ecard') return <ECardScreen onBack={pop} />;
+    if (screen === 'providers') return <ProviderSearchScreen onBack={pop} onProvider={(p) => push('providerDetail', { provider: p })} />;
+    if (screen === 'providerDetail') return <ProviderDetailScreen provider={props.provider} onBack={pop} />;
+    if (screen === 'consult') return <ConsultScreen onBack={pop} onConnect={(type) => push('videocall', { callType: type })} />;
+    if (screen === 'videocall') return <VideoCallScreen callType={props.callType} onEnd={pop} />;
+    if (screen === 'rewards') return <RewardsScreen onBack={pop} />;
+    if (screen === 'wellness') return <WellnessScreen onBack={pop} />;
+    if (screen === 'family') return (
+      <FamilyScreen
+        onBack={pop}
+        onViewMember={(m) => push('memberDetail', { member: m })}
+        onEditMember={(m) => push('editMember', { member: m })}
+        onCertificate={(m) => push('requestCertificate', { member: m })}
+        onReplacement={(m) => push('requestReplacementCard', { member: m })}
+        onDeleteMember={(m) => push('deleteMember', { member: m })}
+      />
+    );
+    if (screen === 'memberDetail') return <MemberDetailScreen member={props.member} onBack={pop} />;
+    if (screen === 'editMember') return <EditMemberScreen member={props.member} onBack={pop} />;
+    if (screen === 'deleteMember') return <DeleteMemberScreen member={props.member} onBack={pop} onDeleted={pop} />;
+    if (screen === 'requestCertificate') return <RequestCertificateScreen member={props.member} onBack={pop} />;
+    if (screen === 'requestReplacementCard') return <RequestReplacementCardScreen member={props.member} onBack={pop} />;
+    if (screen === 'settings') return <SettingsScreen onBack={pop} />;
+    if (screen === 'about') return <AboutScreen onBack={pop} />;
+    if (screen === 'help') return <HelpSupportScreen onBack={pop} />;
+    if (screen === 'messages') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <MessagesScreen onBack={pop} />
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <>
+      <IOSDevice dark={tweaks.deviceColor === 'midnight' || tweaks.deviceColor === 'space-black'}>
+        <div style={{ height: '100%', overflow: 'hidden', position: 'relative', paddingTop: 59, paddingBottom: 34 }}>
+          {renderScreen()}
+        </div>
+      </IOSDevice>
+
+      <TweaksPanel>
+        <TweakSection title="Brand Colors">
+          <TweakColor
+            label="Primary Color"
+            value={tweaks.primaryColor}
+            onChange={v => setTweak('primaryColor', v)}
+          />
+          <TweakColor
+            label="Accent Color"
+            value={tweaks.accentColor}
+            onChange={v => setTweak('accentColor', v)}
+          />
+        </TweakSection>
+        <TweakSection title="Device">
+          <TweakRadio
+            label="Frame Style"
+            options={['midnight', 'silver']}
+            value={tweaks.deviceColor}
+            onChange={v => setTweak('deviceColor', v)}
+          />
+        </TweakSection>
+        <TweakSection title="Start Screen">
+          <TweakToggle
+            label="Show Onboarding"
+            value={tweaks.showOnboarding}
+            onChange={v => setTweak('showOnboarding', v)}
+          />
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+/* ── About Screen ── */
+function AboutScreen({ onBack }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.surfaceAlt, fontFamily: T.fontSans }}>
+      <div style={{ background: T.primary, padding: '12px 16px 20px', borderRadius: '0 0 24px 24px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'white', opacity: 0.05 }} />
+        <BackBtn onBack={onBack} light />
+        <div style={{ fontSize: 22, fontWeight: 700, color: 'white', marginTop: 10 }}>About</div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }}>
+        {/* Logo card */}
+        <div style={{ background: T.white, borderRadius: T.radiusCard, padding: '24px', textAlign: 'center', boxShadow: T.shadowSm, marginBottom: 20 }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 18, background: T.primary,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 12px',
+          }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: T.textPrimary, marginBottom: 2 }}>
+            Willis<span style={{ color: T.accent }}>App</span>
+          </div>
+          <div style={{ fontSize: 13, color: T.textTertiary, marginBottom: 8 }}>Version 1.0.0</div>
+          <div style={{ fontSize: 13.5, color: T.textSecondary, lineHeight: 1.6, maxWidth: 280, margin: '0 auto' }}>
+            Your comprehensive healthcare companion for managing insurance benefits, finding doctors, and accessing telehealth services.
+          </div>
+        </div>
+
+        {/* Features */}
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.textTertiary, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, paddingLeft: 4 }}>Features</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+          {[
+            { icon: '🛡️', title: 'Digital E-Card', desc: 'Always with you' },
+            { icon: '📹', title: 'Video Consult', desc: 'Remote doctor care' },
+            { icon: '📍', title: 'Find Providers', desc: 'Nearby network' },
+            { icon: '🎁', title: 'Rewards', desc: 'Earn & redeem' },
+          ].map((f, i) => (
+            <div key={i} style={{ background: T.white, borderRadius: 12, padding: '14px', boxShadow: T.shadowSm }}>
+              <div style={{ fontSize: 22, marginBottom: 6 }}>{f.icon}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{f.title}</div>
+              <div style={{ fontSize: 11.5, color: T.textSecondary, marginTop: 1 }}>{f.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Company */}
+        <div style={{ background: T.white, borderRadius: T.radiusCard, overflow: 'hidden', boxShadow: T.shadowSm }}>
+          {[
+            { icon: '🌐', label: 'Website', val: 'www.willisapp.com' },
+            { icon: '✉️', label: 'Support', val: 'support@willisapp.com' },
+          ].map((row, i) => (
+            <div key={i} style={{
+              padding: '13px 16px',
+              borderBottom: i < 1 ? `1px solid ${T.border}` : 'none',
+              display: 'flex', gap: 12, alignItems: 'center',
+            }}>
+              <span style={{ fontSize: 18 }}>{row.icon}</span>
+              <div>
+                <div style={{ fontSize: 11.5, color: T.textTertiary }}>{row.label}</div>
+                <div style={{ fontSize: 13.5, color: T.primary, fontWeight: 500 }}>{row.val}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+
+<div id="root"></div>
+</body>
+</html>
